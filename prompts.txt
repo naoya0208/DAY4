@@ -1,0 +1,37 @@
+# Expense Tracker Development Prompts and Results Summary
+
+This document summarizes the iterative development process of the Expense Tracker application.
+
+## 1. Initial Application Setup
+**Prompt Summary:** Create a modern, premium expense tracker using HTML, CSS, and JavaScript. The app should allow adding expenses (date, category, amount, memo), listing them, and showing category-wise summaries. Use localStorage for data persistence.
+**Result:** 
+- `index.html`, `style.css`, `main.js` created.
+- Responsive design with HSL colors and glassmorphism.
+- Functional CRUD operations for local expense management.
+
+## 2. GitHub Integration and Deployment
+**Prompt Summary:** Initialize a Git repository, push to GitHub, and set up automatic deployment via GitHub Pages.
+**Result:**
+- Repository initialized: `https://github.com/naoya0208/DAY4.git`
+- GitHub Actions workflow (`.github/workflows/pages.yml`) configured.
+- Static site deployed to GitHub Pages.
+
+## 3. Cloud Storage Integration (GAS)
+**Prompt Summary:** Integrate Google Apps Script (GAS) to allow cloud synchronization with Google Sheets.
+**Result:**
+- `gas/Code.gs`: Backend logic for upload, download, and sync.
+- CloudSync class in `main.js` to communicate with GAS.
+- `SETUP_GUIDE.md`: Instructions for user deployment.
+
+## 4. Debugging and Optimization
+**Prompt Summary:** Fix "Error" during upload/sync.
+**Result:**
+- Identified CORS/Preflight issue with GAS Web Apps.
+- Changed request `Content-Type` from `application/json` to `text/plain`.
+- Enhanced error handling and diagnostics to identify spreadsheet configuration issues.
+
+## 5. Final Verification
+**Prompt Summary:** Help user find the synchronized data (user was looking at the wrong sheet).
+**Result:**
+- User confirmed data is correctly arriving in the "Expenses" tab of the spreadsheet.
+- Implemented `SpreadsheetApp.flush()` for immediate data persistence.
