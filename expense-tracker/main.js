@@ -49,15 +49,15 @@ class ExpenseManager {
 
         return this.expenses.filter(expense => {
             const expenseDate = new Date(expense.date);
-            return expenseDate.getFullYear() === currentYear && 
-                   expenseDate.getMonth() === currentMonth;
+            return expenseDate.getFullYear() === currentYear &&
+                expenseDate.getMonth() === currentMonth;
         }).sort((a, b) => new Date(b.date) - new Date(a.date));
     }
 
     // カテゴリ別に集計
     getCategorySummary(expenses) {
         const summary = {};
-        
+
         expenses.forEach(expense => {
             if (!summary[expense.category]) {
                 summary[expense.category] = 0;
@@ -82,7 +82,7 @@ class ExpenseUI {
         this.expenseList = document.getElementById('expenseList');
         this.categorySummary = document.getElementById('categorySummary');
         this.totalAmount = document.getElementById('totalAmount');
-        
+
         this.initializeEventListeners();
         this.setDefaultDate();
         this.render();
@@ -129,7 +129,7 @@ class ExpenseUI {
 
     // 画面全体を再描画
     render() {
-        const expenses = this.manager.currentFilter === 'current' 
+        const expenses = this.manager.currentFilter === 'current'
             ? this.manager.getCurrentMonthExpenses()
             : this.manager.getAllExpenses();
 
@@ -244,6 +244,199 @@ class ExpenseUI {
     }
 }
 
+// クラウド同期を管理するクラス
+class CloudSync {
+    constructor() {
+        this.gasUrl = localStorage.getItem('gasUrl') || '';
+        this.loadSavedUrl();
+    }
+
+    // 保存されたURLを入力フィールドに表示
+    loadSavedUrl() {
+        const urlInput = document.getElementById('gasUrl');
+        if (urlInput && this.gasUrl) {
+            urlInput.value = this.gasUrl;
+        }
+    }
+
+    // GAS WebアプリのURLを設定
+    setGasUrl(url) {
+        this.gasUrl = url;
+        localStorage.setItem('gasUrl', url);
+    }
+
+    // URLが設定されているか確認
+    isConfigured() {
+        return this.gasUrl && this.gasUrl.trim() !== '';
+    }
+
+    // 支出データをアップロード
+    async uploadExpenses(expenses) {
+        if (!this.isConfigured()) {
+            throw new Error('GAS WebアプリURLが設定されていません');
+        }
+
+        const response = await fetch(this.gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'upload',
+                data: expenses
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('アップロードに失敗しました');
+        }
+
+        return await response.json();
+    }
+
+    // 支出データをダウンロード
+    async downloadExpenses() {
+        if (!this.isConfigured()) {
+            throw new Error('GAS WebアプリURLが設定されていません');
+        }
+
+        const response = await fetch(this.gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'download'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('ダウンロードに失敗しました');
+        }
+
+        return await response.json();
+    }
+
+    // 支出データを同期（マージ）
+    async syncExpenses(localExpenses) {
+        if (!this.isConfigured()) {
+            throw new Error('GAS WebアプリURLが設定されていません');
+        }
+
+        const response = await fetch(this.gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'sync',
+                data: localExpenses
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('同期に失敗しました');
+        }
+
+        return await response.json();
+    }
+}
+
+// グローバル関数（HTMLから呼び出すため）
+function filterByMonth(filter) {
+    expenseManager.currentFilter = filter;
+    ui.render();
+}
+
+// GAS URLを保存
+function saveGasUrl() {
+    const url = document.getElementById('gasUrl').value.trim();
+    if (!url) {
+        showSyncStatus('URLを入力してください', 'error');
+        return;
+    }
+    cloudSync.setGasUrl(url);
+    showSyncStatus('URL保存完了 ✓', 'success');
+}
+
+// クラウドにアップロード
+async function uploadToCloud() {
+    try {
+        showSyncStatus('アップロード中...', 'info');
+        const expenses = expenseManager.getAllExpenses();
+        const result = await cloudSync.uploadExpenses(expenses);
+
+        if (result.success) {
+            showSyncStatus(`✓ ${result.message}`, 'success');
+        } else {
+            showSyncStatus('アップロード失敗: ' + result.message, 'error');
+        }
+    } catch (error) {
+        showSyncStatus('エラー: ' + error.message, 'error');
+    }
+}
+
+// クラウドからダウンロード
+async function downloadFromCloud() {
+    try {
+        showSyncStatus('ダウンロード中...', 'info');
+        const result = await cloudSync.downloadExpenses();
+
+        if (result.success) {
+            // ローカルデータを上書き
+            expenseManager.expenses = result.data;
+            expenseManager.saveExpenses();
+            ui.render();
+            showSyncStatus(`✓ ${result.message}`, 'success');
+        } else {
+            showSyncStatus('ダウンロード失敗: ' + result.message, 'error');
+        }
+    } catch (error) {
+        showSyncStatus('エラー: ' + error.message, 'error');
+    }
+}
+
+// クラウドと同期
+async function syncWithCloud() {
+    try {
+        showSyncStatus('同期中...', 'info');
+        const localExpenses = expenseManager.getAllExpenses();
+        const result = await cloudSync.syncExpenses(localExpenses);
+
+        if (result.success) {
+            // マージされたデータで更新
+            expenseManager.expenses = result.data;
+            expenseManager.saveExpenses();
+            ui.render();
+            showSyncStatus(`✓ ${result.message}`, 'success');
+        } else {
+            showSyncStatus('同期失敗: ' + result.message, 'error');
+        }
+    } catch (error) {
+        showSyncStatus('エラー: ' + error.message, 'error');
+    }
+}
+
+// 同期ステータスを表示
+function showSyncStatus(message, type) {
+    const status = document.getElementById('syncStatus');
+    if (!status) return;
+
+    status.textContent = message;
+    status.className = `sync-status ${type}`;
+
+    // 成功・エラーメッセージは3秒後に消す
+    if (type !== 'info') {
+        setTimeout(() => {
+            status.textContent = '';
+            status.className = 'sync-status';
+        }, 3000);
+    }
+}
+
 // グローバル関数（HTMLから呼び出すため）
 function filterByMonth(filter) {
     expenseManager.currentFilter = filter;
@@ -253,6 +446,7 @@ function filterByMonth(filter) {
 // アプリケーションの初期化
 const expenseManager = new ExpenseManager();
 const ui = new ExpenseUI(expenseManager);
+const cloudSync = new CloudSync();
 
 // アニメーション用のCSSを追加
 const style = document.createElement('style');

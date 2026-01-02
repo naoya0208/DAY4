@@ -57,7 +57,27 @@
             <div id="categorySummary" class="category-summary"></div>
             <div class="total-amount">
                 <strong>合計:</strong> <span id="totalAmount">¥0</span>
+        </section>
+
+        <!-- クラウド同期 -->
+        <section class="sync-section">
+            <h2>☁️ クラウド同期</h2>
+            <div class="sync-controls">
+                <input type="text" id="gasUrl" placeholder="GAS WebアプリURL を入力">
+                <button class="btn btn-primary" onclick="saveGasUrl()">URL保存</button>
             </div>
+            <div class="sync-actions">
+                <button class="btn btn-secondary" onclick="uploadToCloud()">
+                    ⬆️ アップロード
+                </button>
+                <button class="btn btn-secondary" onclick="downloadFromCloud()">
+                    ⬇️ ダウンロード
+                </button>
+                <button class="btn btn-primary" onclick="syncWithCloud()">
+                    🔄 同期
+                </button>
+            </div>
+            <div id="syncStatus" class="sync-status"></div>
         </section>
 
         <!-- 支出一覧 -->
